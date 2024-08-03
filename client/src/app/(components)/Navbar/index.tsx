@@ -1,14 +1,23 @@
 "use client"
+import { useAppDispatch, useAppSelector } from "@/app/redux";
+import { globalSlice } from "@/state";
 import { Bell, Menu, Settings, Sun } from "lucide-react"
 import Link from "next/link"
 
 const Navbar = () => {
+
+    const dispatch = useAppDispatch();
+    const isSidebarCollapsed = useAppSelector((state) => state.global.isSidebarCollapsed);
+
+    const toggleSidebar = () => {
+        dispatch(globalSlice.actions.toggleSidebar());
+    }
     return (
         <div className={`flex justify-between items-center w-full mb-7`}>
             {/* Left Side */}
             <div className="flex justify-between items-center gap-5">
                 <button className="px-3 py-3 bg-gray-100 rounded-full hover:bg-blue-100"
-                    onClick={() => { }}>
+                    onClick={toggleSidebar}>
                     <Menu className="w-4 h-4" />
                 </button>
             </div>
