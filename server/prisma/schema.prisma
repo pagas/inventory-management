@@ -44,7 +44,7 @@ model Purchases {
   productId String
   timestamp DateTime
   quantity Int
-  unitConst Float
+  unitCost Float
   totalCost Float
   product Products @relation(fields: [productId], references: [productId])
 }
@@ -72,7 +72,7 @@ model PurchaseSummary {
 
 model ExpenseSummary {
   expenseSummaryId String @id
-  totalExpense Float
+  totalExpenses Float
   changePercentage Float?
   date DateTime
   expenseByCategory ExpenseByCategory[]
