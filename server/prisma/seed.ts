@@ -1,81 +1,97 @@
-import { PrismaClient } from "@prisma/client";
-import fs from "fs";
-import path from "path";
+import fs from 'fs';
+import path from 'path';
+import { PrismaClient } from '@prisma/client';
+
 const prisma = new PrismaClient();
 
-async function deleteAllData(orderedFileNames: string[]) {
-  const modelNames = orderedFileNames.map((fileName) => {
-    const modelName = path.basename(fileName, path.extname(fileName));
-    return modelName.charAt(0).toUpperCase() + modelName.slice(1);
-  });
+const dataDirectory = path.join(__dirname, 'seedData');
 
-  for (const modelName of modelNames) {
+const orderedFileNames = [
+  'products.json',
+  'sales.json',
+  'purchases.json',
+  'salesSummary.json',
+  'purchaseSummary.json',
+  'users.json',
+  'expenses.json',
+  'expenseSummary.json',
+  'expenseByCategory.json',
+];
+
+const deletionOrderFileNames = [
+  'sales.json',
+  'purchases.json',
+  'salesSummary.json',
+  'purchaseSummary.json',
+  'products.json',
+  'users.json',
+  'expenseByCategory.json',
+  'expenseSummary.json',
+  'expenses.json',
+];
+
+async function deleteAllData(fileNames: string[]) {
+  for (const fileName of fileNames) {
+    const modelName = getModelNameFromFileName(fileName);
     const model: any = prisma[modelName as keyof typeof prisma];
+
     if (model) {
-      await model.deleteMany({});
-      console.log(`Cleared data from ${modelName}`);
+      try {
+        await model.deleteMany({});
+        console.log(`Deleted data from ${modelName}`);
+      } catch (error) {
+        console.error(`Failed to delete data from ${modelName}:`, error);
+      }
     } else {
-      console.error(
-        `Model ${modelName} not found. Please ensure the model name is correctly specified.`
-      );
+      console.error(`No Prisma model matches the file name: ${fileName}`);
     }
+  }
+}
+
+function getModelNameFromFileName(fileName: string): string {
+  return path.basename(fileName, path.extname(fileName));
+}
+
+async function seedData(fileName: string) {
+  const modelName = getModelNameFromFileName(fileName);
+  const model: any = prisma[modelName as keyof typeof prisma];
+
+  if (!model) {
+    console.error(`No Prisma model matches the file name: ${fileName}`);
+    return;
+  }
+
+  try {
+    const filePath = path.join(dataDirectory, fileName);
+    const jsonData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+
+    for (const data of jsonData) {
+      await model.create({ data });
+    }
+
+    console.log(`Seeded ${modelName} with data from ${fileName}`);
+  } catch (error) {
+    console.error(`Failed to seed ${modelName} from ${fileName}:`, error);
   }
 }
 
 async function main() {
-  const dataDirectory = path.join(__dirname, "seedData");
+  try {
+    // Delete all existing data
+    await deleteAllData(deletionOrderFileNames);
 
-  const orderedFileNames = [
-    "products.json",
-    "sales.json",
-    "purchases.json",
-    "salesSummary.json",
-    "purchaseSummary.json",
-    "users.json",
-    "expenses.json",
-    "expenseSummary.json",
-    "expenseByCategory.json",
-  ];
-
-  const deletionOrderFileNames = [
-    "sales.json",
-    "purchases.json",
-    "salesSummary.json",
-    "purchaseSummary.json",
-    "products.json",
-    "users.json",
-    "expenseByCategory.json",
-    "expenseSummary.json",
-    "expenses.json",
-  ]
-
-  await deleteAllData(deletionOrderFileNames);
-
-  for (const fileName of orderedFileNames) {
-    const filePath = path.join(dataDirectory, fileName);
-    const jsonData = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-    const modelName = path.basename(fileName, path.extname(fileName));
-    const model: any = prisma[modelName as keyof typeof prisma];
-
-    if (!model) {
-      console.error(`No Prisma model matches the file name: ${fileName}`);
-      continue;
+    // Seed new data
+    for (const fileName of orderedFileNames) {
+      await seedData(fileName);
     }
-
-    for (const data of jsonData) {
-      await model.create({
-        data,
-      });
-    }
-
-    console.log(`Seeded ${modelName} with data from ${fileName}`);
+  } catch (error) {
+    console.error('An error occurred during the seeding process:', error);
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((error) => {
+  console.error('Error in main function:', error);
+  process.exit(1);
+});
